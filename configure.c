@@ -157,6 +157,7 @@ void add_extra_lib(char *);
 #define TARGET_CFLAGS_MIPS_ON_X86     "TARGET_CFLAGS=-D_FILE_OFFSET_BITS=64"
 #define TARGET_CFLAGS_MIPS_ON_X86_64  "TARGET_CFLAGS=-m32 -D_FILE_OFFSET_BITS=64"
 #define TARGET_CFLAGS_MIPS64          "TARGET_CFLAGS="
+#define TARGET_CFLAGS_MIPS64_ON_X86_64 "TARGET_CFLAGS="
 #define TARGET_CFLAGS_SPARC64         "TARGET_CFLAGS="
 
 #define GDB_TARGET_DEFAULT        "GDB_CONF_FLAGS="
@@ -168,6 +169,7 @@ void add_extra_lib(char *);
 #define GDB_TARGET_PPC64_ON_X86_64  "GDB_CONF_FLAGS=--target=powerpc64le-unknown-linux-gnu"
 #define GDB_TARGET_MIPS_ON_X86     "GDB_CONF_FLAGS=--target=mipsel-elf-linux"
 #define GDB_TARGET_MIPS_ON_X86_64  "GDB_CONF_FLAGS=--target=mipsel-elf-linux CFLAGS=-m32 CXXFLAGS=-m32"
+#define GDB_TARGET_MIPS64_ON_X86_64 "GDB_CONF_FLAGS=--target=mipsel-elf-linux"
      
 /*
  *  The original plan was to allow the use of a particular version
@@ -429,6 +431,12 @@ get_current_configuration(struct supported_gdb_version *sp)
 			 */
 			target_data.target = MIPS;
 		} else if ((target_data.target == X86_64) &&
+			(name_to_target((char *)target_data.target_as_param) == MIPS64)) {
+			/*
+			 *  Build a MIPS64 crash binary on an X86_64 host.
+			 */
+			target_data.target = MIPS64;
+		} else if ((target_data.target == X86_64) &&
 			(name_to_target((char *)target_data.target_as_param) == X86)) {
 			/*
 			 *  Build an X86 crash binary on an X86_64 host.
@@ -492,9 +500,19 @@ get_current_configuration(struct supported_gdb_version *sp)
 			else
 				arch_mismatch(sp);
 		}
+		if ((target_data.target == MIPS) &&
+			(target_data.initial_gdb_target != MIPS))
+			arch_mismatch(sp);
 
 		if ((target_data.initial_gdb_target == MIPS64) &&
-		    (target_data.target != MIPS64))
+		    (target_data.target != MIPS64)) {
+			if (target_data.target == X86_64)
+				target_data.target = MIPS64;
+			else
+				arch_mismatch(sp);
+		}
+		if ((target_data.target == MIPS64) &&
+			(target_data.initial_gdb_target != MIPS64))
 			arch_mismatch(sp);
 
 		if ((target_data.initial_gdb_target == X86) &&
@@ -771,7 +789,12 @@ build_configure(struct supported_gdb_version *sp)
 		break;
 	case MIPS64:
 		target = TARGET_MIPS64;
-		target_CFLAGS = TARGET_CFLAGS_MIPS64;
+		if (target_data.host == X86_64) {
+			target_CFLAGS = TARGET_CFLAGS_MIPS64_ON_X86_64;
+			gdb_conf_flags = GDB_TARGET_MIPS64_ON_X86_64;
+		}
+		else
+			target_CFLAGS = TARGET_CFLAGS_MIPS64;
 		break;
 	case SPARC64:
 		target = TARGET_SPARC64;
@@ -1687,14 +1710,14 @@ name_to_target(char *name)
                 return ARM;
         else if (strncmp(name, "arm", strlen("arm")) == 0)
                 return ARM;
+		else if (strncmp(name, "mips64", strlen("mips64")) == 0)
+				return MIPS64;
+		else if (strncmp(name, "MIPS64", strlen("MIPS64")) == 0)
+				return MIPS64;
         else if (strncmp(name, "mips", strlen("mips")) == 0)
                 return MIPS;
         else if (strncmp(name, "MIPS", strlen("MIPS")) == 0)
                 return MIPS;
-	else if (strncmp(name, "mips64", strlen("mips64")) == 0)
-		return MIPS64;
-	else if (strncmp(name, "MIPS64", strlen("MIPS64")) == 0)
-		return MIPS64;
 	else if (strncmp(name, "sparc64", strlen("sparc64")) == 0)
 		return SPARC64;
 

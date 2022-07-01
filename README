@@ -92,6 +92,8 @@
      32-bit arm dumpfiles may be built by typing "make target=ARM".
   o  On an x86 or x86_64 host, a 32-bit x86 binary that can be used to analyze
      32-bit mips dumpfiles may be built by typing "make target=MIPS".
+  o  On an x86_64 host, a 64-bit x86_64 binary that can be used to analyze
+     64-bit mips dumpfiles may be built by typing "make target=MIPS64".
   o  On an ppc64 host, a 32-bit ppc binary that can be used to analyze
      32-bit ppc dumpfiles may be built by typing "make target=PPC".
   o  On an x86_64 host, an x86_64 binary that can be used to analyze
