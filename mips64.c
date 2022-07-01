@@ -448,6 +448,12 @@ mips64_back_trace_cmd(struct bt_info *bt)
 			return;
 
 		symbol = value_search(current.pc, &offset);
+		while (symbol > st->symtable) {
+			if ((symbol->name)[0] != '.' || (symbol->name)[1] != 'L')
+				break;
+			offset += symbol->value - (symbol-1)->value;
+			symbol--;
+		}
 		if (!symbol && !invalid_ok) {
 			error(FATAL, "PC is unknown symbol (%lx)", current.pc);
 			return;
@@ -482,6 +488,12 @@ mips64_back_trace_cmd(struct bt_info *bt)
 					symbol->name);
 
 			symbol = value_search(current.pc - 4, &offset);
+			while (symbol > st->symtable) {
+				if ((symbol->name)[0] != '.' || (symbol->name)[1] != 'L')
+					break;
+				offset += symbol->value - (symbol-1)->value;
+				symbol--;
+			}
 			if (!symbol) {
 				error(FATAL, "PC is unknown symbol (%lx)", current.pc);
 				return;

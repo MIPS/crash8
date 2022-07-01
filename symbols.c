@@ -4913,6 +4913,10 @@ retry:
 			    !IN_MODULE_PERCPU(value, lm)) 
 				continue;       
 
+			/* Ignore .L* labels */
+			if (sp->name[0] == '.' && sp->name[1] == 'L')
+				continue;
+
 			if (value == sp->value) {
 				if (MODULE_END(sp) || MODULE_INIT_END(sp))
 					break;
@@ -5125,6 +5129,12 @@ value_to_symstr(ulong value, char *buf, ulong radix)
 		radix = 16;
 
         if ((sp = value_search(value, &offset))) {
+				while (sp > st->symtable) {
+                        if ((sp->name)[0] != '.' || (sp->name)[1] != 'L')
+                                break;
+                        offset += sp->value - (sp-1)->value;
+                        sp--;
+                }
                 if (offset)
                         sprintf(buf, radix == 16 ? "%s+0x%lx" : "%s+%ld",
 				sp->name, offset);
