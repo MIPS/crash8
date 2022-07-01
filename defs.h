@@ -1288,6 +1288,7 @@ struct offset_table {                    /* stash of commonly-used offsets */
 	long signal_struct_count;
 	long signal_struct_action;
 	long signal_struct_shared_pending;
+	long signal_struct_pids;
 	long signal_struct_rlim;
 	long k_sigaction_sa;
 	long sigaction_sa_handler;
@@ -2063,6 +2064,7 @@ struct offset_table {                    /* stash of commonly-used offsets */
 	long memcg_cache_params___root_caches_node;
 	long memcg_cache_params_children;
 	long memcg_cache_params_children_node;
+	long task_struct_thread_pid;
 	long task_struct_pid_links;
 	long kernel_symbol_value;
 	long pci_dev_dev;
