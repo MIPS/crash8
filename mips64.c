@@ -263,7 +263,7 @@ mips64_pgd_vtop(ulong *pgd, ulong vaddr, physaddr_t *paddr, int verbose)
 	if (!pte_val)
 		goto no_page;
 
-	if (!(pte_val & _PAGE_PRESENT)) {
+	if (!(pte_val & _PAGE_PRESENT) || (!(pte_val & _PAGE_READ) && !(pte_val & _PAGE_WRITE))) {
 		if (verbose) {
 			fprintf(fp, "\n");
 			mips64_translate_pte((ulong)pte_val, 0, pte_val);
