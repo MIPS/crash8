@@ -94,6 +94,10 @@ typedef struct { ulong pte; } pte_t;
 
 static struct machine_specific mips64_machine_specific = { 0 };
 
+#define MIPS64_IRQ_STACK_SIZE	(PAGESIZE() << 1)
+#define MIPS64_IRQ_STACK_MASK	(MIPS64_IRQ_STACK_SIZE - 1)
+#define MIPS64_IRQ_STACK_START	(MIPS64_IRQ_STACK_SIZE - 16)
+
 /*
  * Holds registers during the crash.
  */
@@ -525,6 +529,46 @@ mips64_back_trace_cmd(struct bt_info *bt)
 				level, current.pc, current.ra, current.sp);
 
 		previous.sp = previous.pc = previous.ra = 0;
+
+		/* Check if the stack has mips64_pt_regs_main and mips64_pt_regs_cp0
+		   saved from current.sp. This happens when an exception occurs
+		   while running on the irq stack. */
+		if (current.pc == 0 && current.ra == 0) {
+			/* If the sp equals the irq stack start, set the sp to
+			   the value on the irq stack start that points to
+			   somewhere on the kernel stack. */
+			if ((current.sp & MIPS64_IRQ_STACK_MASK) == MIPS64_IRQ_STACK_START) {
+				ulong offset = sizeof(ulong);
+				char *buf = (char *)GETBUF(offset);
+				if (!readmem(current.sp, KVADDR, buf, offset,
+					"mips64_back_trace_cmd", RETURN_ON_ERROR)) {
+				} else {
+					current.sp = *(ulong *)buf;
+				}
+				FREEBUF(buf);
+			}
+
+			ulong offset = sizeof(struct mips64_pt_regs_main) + sizeof(struct mips64_pt_regs_cp0);
+			char *buf = (char *)GETBUF(offset);
+			if (!readmem(current.sp, KVADDR, buf, offset,
+				"mips64_back_trace_cmd", RETURN_ON_ERROR)) {
+				FREEBUF(buf);
+			} else {
+				struct mips64_pt_regs_main *mains;
+				struct mips64_pt_regs_cp0 *cp0;
+				mains = (struct mips64_pt_regs_main *)buf;
+				cp0 = (struct mips64_pt_regs_cp0 *)&buf[sizeof(struct mips64_pt_regs_main)];
+				ulong r29 = mains->regs[29];
+				/* Check if the sp adjustment equals offset */
+				if (r29 == current.sp + offset) {
+					mips64_dump_exception_stack(bt, buf);
+					current.sp = r29;
+					current.ra = mains->regs[31];
+					current.pc = cp0->cp0_epc;
+				}
+				FREEBUF(buf);
+			}
+		}
 	}
 }
 
