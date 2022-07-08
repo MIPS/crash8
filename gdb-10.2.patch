@@ -1650,3 +1650,21 @@ exit 0
 
  	  c_print_type_1 (type->field (i).type (),
  			  TYPE_FIELD_NAME (type, i),
+--- gdb-10.2/gdb/thread.c.orig
++++ gdb-10.2/gdb/thread.c
+@@ -1019,6 +1019,15 @@ print_thread_info_1 (struct ui_out *uiout, const char *requested_threads,
+                     int global_ids, int pid,
+                     int show_global_ids)
+ {
++  // NOT IMPLEMENTED: For MIPS targets, we do not have implemented
++  // initialization of regcache (see x86_64_get_cpu_reg function in x86_64.c),
++  // so we cannot print information about threads created by the crash tool.
++  if (inferior_ptid.pid () == 1)
++  {
++    uiout->message (_("No threads.\n"));
++    return;
++  }
++
+   int default_inf_num = current_inferior ()->num;
+
+   update_thread_list ();
