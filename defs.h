@@ -3477,7 +3477,7 @@ struct arm64_stackframe {
 #define IS_XKPHYS(X)		(((X) >= 0x8000000000000000lu) && \
 				((X) < 0xc000000000000000lu))
 
-#define PTOV(X) 		((ulong)(X) + 0x9800000000000000lu)
+#define PTOV(X) 		((ulong)(X) + KVSTART)
 #define VTOP(X) 		(IS_CKPHYS(X) ? ((ulong)(X) & 0x000000001ffffffflu) \
 				: ((ulong)(X) & 0x0000fffffffffffflu))
 
