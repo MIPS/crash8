@@ -3451,6 +3451,26 @@ struct arm64_stackframe {
 #define _64BIT_
 #define MACHINE_TYPE		"MIPS64"
 
+/*
+ * Intentionally comment out both of the following so that a correct value
+ * will always be defined.
+ */
+/* #define PSTART 0x20000000lu */
+/* #define PSTART 0x40000000lu */
+#ifndef PSTART
+#error "You need to define PSTART (physical address start)!"
+#endif
+
+/*
+ * Intentionally comment out both of the following so that a correct value
+ * will always be defined.
+ */
+/* #define KVSTART 0xa800000000000000lu */
+/* #define KVSTART 0xffffffff80000000lu */
+#ifndef KVSTART
+#error "You need to define KVSTART (kernel virtual address start)!"
+#endif
+
 #define PAGEBASE(X)		(((ulong)(X)) & (ulong)machdep->pagemask)
 #define IS_CKPHYS(X)		(((X) >= 0xffffffff80000000lu) && \
 				((X) < 0xffffffffc0000000lu))
