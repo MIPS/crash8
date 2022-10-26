@@ -267,7 +267,7 @@ mips64_pgd_vtop(ulong *pgd, ulong vaddr, physaddr_t *paddr, int verbose)
 	if (!pte_val)
 		goto no_page;
 
-	if (!(pte_val & _PAGE_PRESENT) || (!(pte_val & _PAGE_READ) && !(pte_val & _PAGE_WRITE))) {
+	if (!(pte_val & _PAGE_PRESENT)) {
 		if (verbose) {
 			fprintf(fp, "\n");
 			mips64_translate_pte((ulong)pte_val, 0, pte_val);
@@ -276,6 +276,14 @@ mips64_pgd_vtop(ulong *pgd, ulong vaddr, physaddr_t *paddr, int verbose)
 	}
 
 	*paddr = PTOB(pte_val >> _PFN_SHIFT) + PAGEOFFSET(vaddr);
+
+	if (*paddr < PSTART) {
+		if (verbose) {
+			fprintf(fp, "\n");
+			mips64_translate_pte((ulong)pte_val, 0, pte_val);
+		}
+		return FALSE;
+	}
 
 	if (verbose) {
 		fprintf(fp, " PAGE: %016lx\n\n", PAGEBASE(*paddr));
