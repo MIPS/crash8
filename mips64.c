@@ -1138,7 +1138,41 @@ mips64_get_smp_cpus(void)
 static ulong
 mips64_get_page_size(void)
 {
-	return memory_page_size();
+	char *string;
+	string = pc->read_vmcoreinfo("PAGESIZE");
+	if (string) {
+		int page_size = atoi(string);
+		free(string);
+		return page_size;
+	}
+
+	/* From arch/mips/Kconfig. */
+	if (kt->ikconfig_flags & IKCONFIG_AVAIL) {
+		if (get_kernel_config("CONFIG_PAGE_SIZE_4KB", NULL) == IKCONFIG_Y)
+			return 4 * 1024;
+		else if (get_kernel_config("CONFIG_PAGE_SIZE_8KB", NULL) == IKCONFIG_Y)
+			return 8 * 1024;
+		else if (get_kernel_config("CONFIG_PAGE_SIZE_16KB", NULL) == IKCONFIG_Y)
+			return 16 * 1024;
+		else if (get_kernel_config("CONFIG_PAGE_SIZE_32KB", NULL) == IKCONFIG_Y)
+			return 32 * 1024;
+		else if (get_kernel_config("CONFIG_PAGE_SIZE_64KB", NULL) == IKCONFIG_Y)
+			return 64 * 1024;
+	}
+
+	/*
+	 * Symbol following swapper_pg_dir is page-aligned (see arch/mips/mm/init.c).
+	 */
+	struct syment *spd, *next = NULL;
+
+	spd = symbol_search("swapper_pg_dir");
+	if (spd)
+		next = next_symbol(NULL, spd);
+
+	if (!spd || !next)
+		return memory_page_size();
+
+	return next->value - spd->value;
 }
 
 /*

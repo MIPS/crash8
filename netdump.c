@@ -60,7 +60,7 @@ static char *vmcoreinfo_read_string(const char *);
  * can differ from the host machine's page size.
  */
 #define READ_PAGESIZE_FROM_VMCOREINFO() \
-	(machine_type("IA64") || machine_type("PPC64") || machine_type("PPC") || machine_type("ARM64"))
+	(machine_type("IA64") || machine_type("PPC64") || machine_type("PPC") || machine_type("ARM64") || machine_type("MIPS64") || machine_type("MIPS"))
 
 /*
  * kdump installs NT_PRSTATUS elf notes only to the cpus
