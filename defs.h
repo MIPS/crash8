@@ -6663,7 +6663,7 @@ struct machine_specific {
 	ulong _page_modified;
 	ulong _page_huge;
 	ulong _page_special;
-	ulong _page_protnone;
+	ulong _page_soft_dirty;
 	ulong _page_global;
 	ulong _page_valid;
 	ulong _page_no_read;
@@ -6682,7 +6682,7 @@ struct machine_specific {
 #define _PAGE_MODIFIED	(machdep->machspec->_page_modified)
 #define _PAGE_HUGE	(machdep->machspec->_page_huge)
 #define _PAGE_SPECIAL	(machdep->machspec->_page_special)
-#define _PAGE_PROTNONE	(machdep->machspec->_page_protnone)
+#define _PAGE_SOFT_DIRTY	(machdep->machspec->_page_soft_dirty)
 #define _PAGE_GLOBAL	(machdep->machspec->_page_global)
 #define _PAGE_VALID	(machdep->machspec->_page_valid)
 #define _PAGE_NO_READ	(machdep->machspec->_page_no_read)

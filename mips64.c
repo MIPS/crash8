@@ -79,6 +79,15 @@ typedef struct { ulong pte; } pte_t;
 #define pmd_index(addr)	(((addr) >> PMD_SHIFT) & (PTRS_PER_PMD - 1))
 #define pgd_index(addr)	(((addr) >> PGDIR_SHIFT) & (PTRS_PER_PGD - 1))
 
+/* From arch/mips/include/asm/cpu.h. */
+/*
+ * ISA Level encodings
+ */
+#define MIPS_CPU_ISA_M64R2	0x00000080
+#define MIPS_CPU_ISA_M64R6	0x00000800
+/*
+ * CPU Option encodings
+ */
 #define MIPS64_CPU_RIXI	(1UL << 23)	/* CPU has TLB Read/eXec Inhibit */
 
 /* From arch/mips/include/uapi/asm/reg.h */
@@ -103,29 +112,81 @@ static struct machine_specific mips64_machine_specific = { 0 };
  */
 static struct mips64_register *panic_task_regs;
 
-/*
- * 31                15 14    12 11 10  9  8  7  6  5  4  3  2  1  0
- * +-------------------+--------+--+--+--+--+--+--+--+--+--+--+--+--+
- * |       VPN         |    C   | D| V| G|RI|XI|SP|PN| H| M| A| W| P|
- * +-------------------+--------+--+--+--+--+--+--+--+--+--+--+--+--+
- */
+/* From arch/mips/include/asm/pgtable-bits.h */
 static void
 mips64_init_page_flags(void)
 {
 	ulong shift = 0;
 
+	ulonglong cpu_options;
+
+	ulong addr = symbol_value("cpu_data") +
+			MEMBER_OFFSET("cpuinfo_mips", "options");
+	readmem(addr, KVADDR, &cpu_options, sizeof(cpu_options),
+		"cpu_data[0].options", FAULT_ON_ERROR);
+	int rixi = cpu_options & MIPS64_CPU_RIXI;
+
+	int cpu_isa_level;
+	addr = symbol_value("cpu_data") +
+			MEMBER_OFFSET("cpuinfo_mips", "isa_level");
+	readmem(addr, KVADDR, &cpu_isa_level, sizeof(cpu_isa_level),
+		"cpu_data[0].isa_level", FAULT_ON_ERROR);
+	int isa_m64r2 = cpu_isa_level & MIPS_CPU_ISA_M64R2, isa_m64r6 = cpu_isa_level & MIPS_CPU_ISA_M64R6;
+
+	/*
+	 * CONFIG_HAS_RIXI configuration option was introduced with 8256b17ecb028949d80c982d0f28ad46fe4e73d8.
+	 */
+	int cpu_has_rixi = 0;
+	if (THIS_KERNEL_VERSION >= LINUX(4,7,0)) {
+		if (rixi)
+			cpu_has_rixi = 1;
+	}
+	else {
+		if (isa_m64r2 || isa_m64r6)
+			cpu_has_rixi = 1;
+	}
+
 	_PAGE_PRESENT = 1UL << shift++;
+
+	if (!cpu_has_rixi)
+		_PAGE_READ = _PAGE_NO_READ = 1UL << shift++;
+
 	_PAGE_WRITE = 1UL << shift++;
 	_PAGE_ACCESSED = 1UL << shift++;
 	_PAGE_MODIFIED = 1UL << shift++;
-	_PAGE_HUGE = 1UL << shift++;
-	_PAGE_PROTNONE = 1UL << shift++;
 
-	if (THIS_KERNEL_VERSION >= LINUX(4,5,0))
+	if (kt->ikconfig_flags & IKCONFIG_AVAIL) {
+		if (get_kernel_config("CONFIG_MIPS_HUGE_TLB_SUPPORT", NULL) == IKCONFIG_Y)
+			_PAGE_HUGE = 1UL << shift++;
+	}
+	else {
+		/*
+		 * If no configuration file is available, we assume MIPS_HUGE_TLB_SUPPORT=y,
+		 * as most configurations set it.
+		 */
+		_PAGE_HUGE = 1UL << shift++;
+	}
+	/*
+	 * SPECIAL support was introduced with 61cbfff4b1a7c15a7e403473ca5a290fd13d5656.
+	 * For 64-bit MIPS, ARCH_HAS_PTE_SPECIAL is true (see arch/mips/Kconfig).
+	 */
+	if (THIS_KERNEL_VERSION >= LINUX(5,4,0))
 		_PAGE_SPECIAL = 1UL << shift++;
+	/*
+	 * SOFT_DIRTY support was introduced with 2971317ab04a38e34be5f4d62a65000b63857686.
+	 * If no configuration file is available, we assume HAVE_ARCH_SOFT_DIRTY not to be
+	 * set, as most configurations don't set it (since it is highly specific).
+	 */
+	if (THIS_KERNEL_VERSION >= LINUX(5,8,0))
+		if (kt->ikconfig_flags & IKCONFIG_AVAIL
+			&& get_kernel_config("CONFIG_HAVE_ARCH_SOFT_DIRTY", NULL) == IKCONFIG_Y)
+			_PAGE_SOFT_DIRTY = 1UL << shift++;
 
-	_PAGE_NO_EXEC = 1UL << shift++;
-	_PAGE_NO_READ = _PAGE_READ = 1UL << shift++;
+	if (cpu_has_rixi) {
+		_PAGE_NO_EXEC = 1UL << shift++;
+		_PAGE_READ = _PAGE_NO_READ = 1UL << shift++;
+	}
+
 	_PAGE_GLOBAL = 1UL << shift++;
 	_PAGE_VALID = 1UL << shift++;
 	_PAGE_DIRTY = 1UL << shift++;
@@ -184,7 +245,7 @@ mips64_translate_pte(ulong pte, void *physaddr, ulonglong pte64)
 		CHECK_PAGE_FLAG(ACCESSED);
 		CHECK_PAGE_FLAG(MODIFIED);
 		CHECK_PAGE_FLAG(HUGE);
-		CHECK_PAGE_FLAG(PROTNONE);
+		CHECK_PAGE_FLAG(SOFT_DIRTY);
 		CHECK_PAGE_FLAG(SPECIAL);
 		CHECK_PAGE_FLAG(NO_EXEC);
 		CHECK_PAGE_FLAG(NO_READ);
