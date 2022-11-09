@@ -50,6 +50,12 @@ static int mips64_get_crash_notes(void);
 static int mips64_get_elf_notes(void);
 
 /*
+ * Physical memory is addressed via the lowest _MAX_PHYSMEM_BITS
+ * of the physical address.
+ */
+#define PHYS_ADDR_MASK ((1UL << _MAX_PHYSMEM_BITS) - 1)
+
+/*
  * 3 Levels paging       PAGE_SIZE=16KB
  *  PGD  |  PMD  |  PTE  |  OFFSET  |
  *  11   |  11   |  11   |    14    |
@@ -78,6 +84,17 @@ typedef struct { ulong pte; } pte_t;
 #define pte_index(addr)	(((addr) >> PAGESHIFT()) & (PTRS_PER_PTE - 1))
 #define pmd_index(addr)	(((addr) >> PMD_SHIFT) & (PTRS_PER_PMD - 1))
 #define pgd_index(addr)	(((addr) >> PGDIR_SHIFT) & (PTRS_PER_PGD - 1))
+
+/*
+ * Directories (levels above the page table) have entries in the following format:
+ *
+ * 63                12 11    2     1
+ * +-------------------+-------+----------+
+ * | Directory Pointer |   0   | PTEvld=0 |
+ * +-------------------+-------+----------+
+ *
+ */
+#define DIR_PTR_MASK (~(0xFFFUL))
 
 /* From arch/mips/include/asm/cpu.h. */
 /*
@@ -208,7 +225,7 @@ mips64_translate_pte(ulong pte, void *physaddr, ulonglong pte64)
 	int len1, len2, others;
 	ulong paddr;
 
-	paddr = PTOB(pte >> _PFN_SHIFT);
+	paddr = PTOB(pte >> _PFN_SHIFT) & PHYS_ADDR_MASK;
 	page_present = !!(pte & _PAGE_PRESENT);
 
 	if (physaddr) {
@@ -306,7 +323,7 @@ mips64_pgd_vtop(ulong *pgd, ulong vaddr, physaddr_t *paddr, int verbose)
 
 	pgd_ptr = pgd + pgd_index(vaddr);
 	FILL_PGD(PAGEBASE(pgd), KVADDR, PAGESIZE());
-	pgd_val = ULONG(machdep->pgd + PAGEOFFSET(pgd_ptr));
+	pgd_val = ULONG(machdep->pgd + PAGEOFFSET(pgd_ptr)) & DIR_PTR_MASK;
 	if (verbose)
 		fprintf(fp, "  PGD: %16lx => %16lx\n", (ulong)pgd_ptr, pgd_val);
 	if (!pgd_val)
@@ -314,7 +331,7 @@ mips64_pgd_vtop(ulong *pgd, ulong vaddr, physaddr_t *paddr, int verbose)
 
 	pmd_ptr = (ulong *)(VTOP(pgd_val) + sizeof(pmd_t) * pmd_index(vaddr));
 	FILL_PMD(PAGEBASE(pmd_ptr), PHYSADDR, PAGESIZE());
-	pmd_val = ULONG(machdep->pmd + PAGEOFFSET(pmd_ptr));
+	pmd_val = ULONG(machdep->pmd + PAGEOFFSET(pmd_ptr)) & DIR_PTR_MASK;
 	if (verbose)
 		fprintf(fp, "  PMD: %016lx => %016lx\n", (ulong)pmd_ptr, pmd_val);
 	if (!pmd_val)
@@ -322,7 +339,7 @@ mips64_pgd_vtop(ulong *pgd, ulong vaddr, physaddr_t *paddr, int verbose)
 
 	pte_ptr = (ulong *)(VTOP(pmd_val) + sizeof(pte_t) * pte_index(vaddr));
 	FILL_PTBL(PAGEBASE(pte_ptr), PHYSADDR, PAGESIZE());
-	pte_val = ULONG(machdep->ptbl + PAGEOFFSET(pte_ptr));
+	pte_val = ULONG(machdep->ptbl + PAGEOFFSET(pte_ptr)) & PHYS_ADDR_MASK;
 	if (verbose)
 		fprintf(fp, "  PTE: %016lx => %016lx\n", (ulong)pte_ptr, pte_val);
 	if (!pte_val)
